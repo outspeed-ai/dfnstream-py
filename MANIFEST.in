@@ -1,0 +1,5 @@
+include README.md
+include LICENSE
+recursive-include src/dfnstream_py/lib *.so *.dylib
+recursive-include src/dfnstream_py/models *.tar.gz
+include src/dfnstream_py/py.typed
