@@ -1,6 +1,6 @@
 [project]
 name = "dfnstream-py"
-version = "0.1.0"
+version = "0.2.0"
 description = "Real-time audio denoising using DeepFilterNet with streaming"
 readme = "README.md"
 authors = [
@@ -9,7 +9,8 @@ authors = [
 license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
-    "numpy>=2.3.1",
+    "numpy>=1.24,<2.3",
+    "onnxruntime>=1.22.0",
 ]
 keywords = ["audio", "denoising", "deepfilternet", "streaming", "real-time"]
 classifiers = [
@@ -28,9 +29,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/theseyan/dfnstream-py"
-Repository = "https://github.com/theseyan/dfnstream-py"
-Issues = "https://github.com/theseyan/dfnstream-py/issues"
+Homepage = "https://github.com/outspeed-ai/dfnstream-py"
+Repository = "https://github.com/outspeed-ai/dfnstream-py"
+Issues = "https://github.com/outspeed-ai/dfnstream-py/issues"
 
 [build-system]
 requires = ["hatchling"]

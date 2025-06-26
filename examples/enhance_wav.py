@@ -8,7 +8,7 @@ import sys
 import wave
 import os
 import argparse
-from dfnstream_py import DeepFilterNetStreaming
+from dfnstream_py import DeepFilterNetStreamingONNX
 
 
 def load_wav_file(filepath):
@@ -120,7 +120,7 @@ def process_wav_file(input_file):
         audio_data, sample_rate = load_wav_file(input_file)
         
         print("\n🤖 Initializing DeepFilterNet...")
-        processor = DeepFilterNetStreaming(
+        processor = DeepFilterNetStreamingONNX(
             model_path=None,
             atten_lim=None,
             log_level="warn", 

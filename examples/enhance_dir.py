@@ -10,7 +10,7 @@ import os
 import argparse
 import glob
 from pathlib import Path
-from dfnstream_py import DeepFilterNetStreaming
+from dfnstream_py import DeepFilterNetStreamingONNX
 
 
 def load_wav_file(filepath):
@@ -151,7 +151,7 @@ def enhance_directory(input_dir):
     try:
         # Initialize processor once for all files
         print("\n🤖 Initializing DeepFilterNet...")
-        processor = DeepFilterNetStreaming(
+        processor = DeepFilterNetStreamingONNX(
             model_path=None,  # Use default model path
             atten_lim=None,  # No attenuation limit (full noise reduction)
             log_level="warn", 
