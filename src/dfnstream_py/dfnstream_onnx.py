@@ -18,7 +18,7 @@ class DeepFilterNetStreaming:
         
         Args:
             model_path: Optional path to ONNX model file (.onnx file)
-            atten_lim: Ignored in ONNX version
+            atten_lim: Attenuation limit in dB (default: None = no limit, full noise reduction)
             log_level: Ignored in ONNX version
             compensate_delay: Ignored in ONNX version
             post_filter_beta: Ignored in ONNX version
@@ -28,6 +28,7 @@ class DeepFilterNetStreaming:
         
         self._onnx_processor = ONNXDeepFilterNetStreaming(
             onnx_model_path=model_path,
+            atten_lim_db=atten_lim,
         )
     
     @property
@@ -83,12 +84,11 @@ class DeepFilterNetStreaming:
     def set_attenuation_limit(self, lim_db: float):
         """
         Set the attenuation limit in dB.
-        Note: Not implemented in ONNX version.
         
         Args:
             lim_db: New attenuation limit in dB
         """
-        pass
+        self._onnx_processor.set_attenuation_limit(lim_db)
     
     def set_post_filter_beta(self, beta: float):
         """

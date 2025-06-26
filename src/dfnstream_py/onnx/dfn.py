@@ -1,11 +1,15 @@
 import numpy as np
 import onnxruntime as ort
-from typing import List
-
+from typing import Optional
 
 class ONNXDeepFilterNetStreaming:
-    def __init__(self, onnx_model_path: str):
+    def __init__(self, onnx_model_path: str, atten_lim_db: Optional[float] = None):
         self.onnx_model_path = onnx_model_path
+
+        if atten_lim_db is None:
+            self.atten_lim = 0.0
+        else:
+            self.atten_lim = atten_lim_db
         
         self.ort_session = ort.InferenceSession(onnx_model_path)
         
@@ -16,63 +20,11 @@ class ONNXDeepFilterNetStreaming:
         self._frame_length = 512
         self._sample_rate = 48000
         
-        self.states = self._initialize_states()
+        # Initialize flattened states
+        self.states = np.zeros(46136, dtype=np.float32)
         
         self._partial_frame_buffer = np.array([], dtype=np.float32)
     
-    def _initialize_states(self) -> List[np.ndarray]:
-        """Initialize all model states with zeros using exact ONNX shapes"""
-        states = []
-        
-        for i, input_info in enumerate(self.ort_session.get_inputs()):
-            if i == 0:
-                continue
-            
-            shape = input_info.shape
-            
-            if "erb_norm_state" in input_info.name:
-                # Shape: [32]
-                state = np.linspace(-60.0, -90.0, 32, dtype=np.float32)
-            elif "band_unit_norm_state" in input_info.name:
-                # Shape: [1, 96, 1]
-                state = np.linspace(0.001, 0.0001, 96, dtype=np.float32).reshape(1, 96, 1)
-            elif "analysis_mem" in input_info.name:
-                # Shape: [512]
-                state = np.zeros(512, dtype=np.float32)
-            elif "synthesis_mem" in input_info.name:
-                # Shape: [512]
-                state = np.zeros(512, dtype=np.float32)
-            elif "rolling_erb_buf" in input_info.name:
-                # Shape: [1, 1, 3, 32]
-                state = np.zeros((1, 1, 3, 32), dtype=np.float32)
-            elif "rolling_feat_spec_buf" in input_info.name:
-                # Shape: [1, 2, 3, 96]
-                state = np.zeros((1, 2, 3, 96), dtype=np.float32)
-            elif "rolling_c0_buf" in input_info.name:
-                # Shape: [1, 64, 5, 96]
-                state = np.zeros((1, 64, 5, 96), dtype=np.float32)
-            elif "rolling_spec_buf_x" in input_info.name:
-                # Shape: [5, 513, 2]
-                state = np.zeros((5, 513, 2), dtype=np.float32)
-            elif "rolling_spec_buf_y" in input_info.name:
-                # Shape: [7, 513, 2]
-                state = np.zeros((7, 513, 2), dtype=np.float32)
-            elif "enc_hidden" in input_info.name:
-                # Shape: [1, 1, 256]
-                state = np.zeros((1, 1, 256), dtype=np.float32)
-            elif "erb_dec_hidden" in input_info.name:
-                # Shape: [2, 1, 256]
-                state = np.zeros((2, 1, 256), dtype=np.float32)
-            elif "df_dec_hidden" in input_info.name:
-                # Shape: [2, 1, 256]
-                state = np.zeros((2, 1, 256), dtype=np.float32)
-            else:
-                # Fallback to zeros
-                state = np.zeros(shape, dtype=np.float32)
-            
-            states.append(state)
-            
-        return states
     
     @property
     def frame_length(self) -> int:
@@ -81,6 +33,10 @@ class ONNXDeepFilterNetStreaming:
     @property
     def sample_rate(self) -> int:
         return self._sample_rate
+    
+    def set_attenuation_limit(self, lim_db: float):
+        """Set attenuation limit in dB."""
+        self.atten_lim = lim_db
     
     def process_frame(self, audio_frame: np.ndarray) -> np.ndarray:
         if audio_frame.dtype != np.float32:
@@ -93,19 +49,20 @@ class ONNXDeepFilterNetStreaming:
             )
         
         try:
+            # Prepare input features
             input_features = {
-                self.input_names[0]: audio_frame
+                self.input_names[0]: audio_frame,  # input_frame
+                self.input_names[1]: self.states,  # states (flattened)
+                self.input_names[2]: np.array(self.atten_lim, dtype=np.float32)  # atten_lim_db
             }
-            
-            for i, state in enumerate(self.states):
-                input_features[self.input_names[i + 1]] = state
             
             # Run inference
             outputs = self.ort_session.run(self.output_names, input_features)
             
-            # Extract enhanced audio and updated states
-            enhanced_chunk = outputs[0]  # First output is enhanced audio
-            self.states = outputs[1:]    # Remaining outputs are updated states
+            # Extract enhanced audio, updated states, and lsnr
+            enhanced_chunk = outputs[0]  # enhanced_audio_frame
+            self.states = outputs[1]     # new_states (flattened)
+            # lsnr = outputs[2]         # lsnr (optional, can be used for monitoring)
             
             return enhanced_chunk
                 
@@ -171,13 +128,13 @@ class ONNXDeepFilterNetStreaming:
         """Clean up resources."""
         # Clear buffers
         self._partial_frame_buffer = np.array([], dtype=np.float32)
-        self.states = self._initialize_states()
+        self.states = np.zeros(46136, dtype=np.float32)
     
     def __enter__(self):
         """Context manager entry."""
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         """Context manager exit - cleanup resources."""
         self.close()
         return False
